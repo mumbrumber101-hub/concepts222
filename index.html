@@ -1909,7 +1909,23 @@
 (() => {
   'use strict';
   // The Wix page scrolls around a tall iframe; its header does not stay above entries.
-  document.documentElement.classList.toggle('embedded-guide', window.self !== window.top);
+  const embedded = window.self !== window.top;
+  document.documentElement.classList.toggle('embedded-guide', embedded);
+  const hostOrigin = 'https://www.arriveateasterwine.com';
+  let hostReady = false;
+  window.addEventListener('message', event => {
+    if (event.source === window.parent && event.origin === hostOrigin && event.data?.type === 'concepts-host-ready') hostReady = true;
+  });
+  if (embedded) window.parent.postMessage({type: 'concepts-guide-ready'}, hostOrigin);
+
+  function scrollToTarget(element, focusTarget) {
+    if (focusTarget) focusTarget.focus({preventScroll: true});
+    if (embedded && hostReady) {
+      // Scroll each document explicitly; the host owns the outer page position.
+      window.scrollTo({top: Math.max(0, element.getBoundingClientRect().top + window.scrollY - 24), behavior: 'instant'});
+      window.parent.postMessage({type: 'concepts-guide-scroll', id: element.id, offset: element.getBoundingClientRect().top}, hostOrigin);
+    } else element.scrollIntoView({block: 'start', behavior: 'instant'});
+  }
   const data = JSON.parse(document.getElementById('concept-data').textContent);
   const search = document.getElementById('search');
   const clear = document.getElementById('clear-search');
@@ -1986,7 +2002,7 @@
 
   function recordHash(id) {
     if (location.hash === '#' + id) return;
-    try { history.pushState(null, '', '#' + id); }
+    try { history[embedded ? 'replaceState' : 'pushState'](null, '', '#' + id); }
     catch { location.hash = id; }
   }
 
@@ -1998,8 +2014,7 @@
     setExpanded(id, true);
     if (updateHash) recordHash(id);
     requestAnimationFrame(() => {
-      entry.element.scrollIntoView({block: 'start', behavior: 'instant'});
-      entry.element.querySelector('.entry-toggle').focus({preventScroll: true});
+      scrollToTarget(entry.element, entry.element.querySelector('.entry-toggle'));
     });
   }
 
@@ -2010,12 +2025,9 @@
     setView('alpha');
     if (updateHash) recordHash(id);
     requestAnimationFrame(() => {
-      section.scrollIntoView({block: 'start', behavior: 'instant'});
       const heading = section.querySelector('.letter-heading');
-      if (heading) {
-        heading.setAttribute('tabindex', '-1');
-        heading.focus({preventScroll: true});
-      }
+      if (heading) heading.setAttribute('tabindex', '-1');
+      scrollToTarget(section, heading);
     });
   }
 
