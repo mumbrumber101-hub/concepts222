@@ -359,6 +359,9 @@
         .alpha-disabled { color: var(--border); }
         .alpha-bar a { padding: .15rem .38rem; }
         .entry, .letter-section { scroll-margin-top: calc(var(--header-height) + 22px); }
+        html.embedded-guide { scroll-behavior: auto; }
+        .embedded-guide header { position: static; }
+        .embedded-guide .entry, .embedded-guide .letter-section { scroll-margin-top: 24px; }
         .entry:target .entry-term { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 5px; }
         .entry-header { display: block; cursor: default; }
         .entry-heading { margin: 0; font-size: inherit; }
@@ -1905,6 +1908,8 @@
 <script>
 (() => {
   'use strict';
+  // The Wix page scrolls around a tall iframe; its header does not stay above entries.
+  document.documentElement.classList.toggle('embedded-guide', window.self !== window.top);
   const data = JSON.parse(document.getElementById('concept-data').textContent);
   const search = document.getElementById('search');
   const clear = document.getElementById('clear-search');
@@ -1993,7 +1998,7 @@
     setExpanded(id, true);
     if (updateHash) recordHash(id);
     requestAnimationFrame(() => {
-      entry.element.scrollIntoView({block: 'start'});
+      entry.element.scrollIntoView({block: 'start', behavior: 'instant'});
       entry.element.querySelector('.entry-toggle').focus({preventScroll: true});
     });
   }
@@ -2004,7 +2009,14 @@
     if (section.hidden) { search.value = ''; filter(); }
     setView('alpha');
     if (updateHash) recordHash(id);
-    requestAnimationFrame(() => section.scrollIntoView({block: 'start'}));
+    requestAnimationFrame(() => {
+      section.scrollIntoView({block: 'start', behavior: 'instant'});
+      const heading = section.querySelector('.letter-heading');
+      if (heading) {
+        heading.setAttribute('tabindex', '-1');
+        heading.focus({preventScroll: true});
+      }
+    });
   }
 
   function followHash() {
